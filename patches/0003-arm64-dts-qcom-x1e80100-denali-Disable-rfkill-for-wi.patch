@@ -1,0 +1,25 @@
+From 906865c001c9a01d1e2271da4db926d519a95cd8 Mon Sep 17 00:00:00 2001
+From: dwhinham <dale@dalewh.inham.org.uk>
+Date: Tue, 28 Oct 2025 19:05:26 +0000
+Subject: [PATCH 3/4] arm64: dts: qcom: x1e80100-denali: Disable rfkill for
+ wifi0
+
+---
+ arch/arm64/boot/dts/qcom/x1e80100-microsoft-denali.dts | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/x1e80100-microsoft-denali.dts b/arch/arm64/boot/dts/qcom/x1e80100-microsoft-denali.dts
+index 6318d74ccab2a1..7e07a6a186c1b3 100644
+--- a/arch/arm64/boot/dts/qcom/x1e80100-microsoft-denali.dts
++++ b/arch/arm64/boot/dts/qcom/x1e80100-microsoft-denali.dts
+@@ -979,6 +979,8 @@
+ 		vddrfa1p8-supply = <&vreg_pmu_rfa_1p8>;
+ 		vddpcie0p9-supply = <&vreg_pmu_pcie_0p9>;
+ 		vddpcie1p8-supply = <&vreg_pmu_pcie_1p8>;
++
++		disable-rfkill;
+ 	};
+ };
+ 
+-- 
+2.48.1
