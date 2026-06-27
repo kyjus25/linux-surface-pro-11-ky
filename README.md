@@ -12,6 +12,26 @@ and boot workarounds for the Surface Pro 11 (WCN7850).
 - **efi=novamap** — works around EFI memory map issues on Snapdragon X Elite
 - **Audio blacklist** — prevents audio DSP hangs from blocking boot
 
+## Pre-installed packages
+
+- **curl** — for downloading files
+- **openssh-server** — enabled on boot, ready for remote debugging
+- **net-tools** — ifconfig, netstat, etc.
+- **opencode** — installed via `curl -fsSL https://opencode.ai/install | bash`
+
+## SSH access
+
+The live USB has SSH enabled by default for remote debugging:
+
+```bash
+# Default credentials
+User: ubuntu
+Pass: 12345678
+
+# Connect
+ssh ubuntu@<ip-address>
+```
+
 ## Usage
 
 ```bash

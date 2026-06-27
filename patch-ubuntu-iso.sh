@@ -279,21 +279,20 @@ done
 # Update module dependencies
 depmod -b "$WORK/rootfs" "$KVER" 2>/dev/null || true
 
-# 10. (disabled) Fetch latest ath12k firmware — not verified as needed yet
-# info "Fetching latest ath12k/WCN7850 firmware ..."
-# FW_DIR="$WORK/rootfs/lib/firmware/ath12k/WCN7850/hw2.0"
-# mkdir -p "$FW_DIR"
-# git clone --depth 1 --filter=blob:none --sparse \
-#     https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git \
-#     "$WORK/linux-firmware" 2>/dev/null
-# git -C "$WORK/linux-firmware" sparse-checkout set ath12k/WCN7850/hw2.0 2>/dev/null
-# if [ -d "$WORK/linux-firmware/ath12k/WCN7850/hw2.0" ] && \
-#    [ -n "$(ls -A "$WORK/linux-firmware/ath12k/WCN7850/hw2.0" 2>/dev/null)" ]; then
-#     cp -rv "$WORK/linux-firmware/ath12k/WCN7850/hw2.0/"* "$FW_DIR/"
-# fi
-# rm -rf "$WORK/linux-firmware"
-# info "ath12k firmware files in rootfs:"
-# ls -lh "$FW_DIR/" 2>/dev/null || true
+# 10. Install packages via chroot
+info "Installing packages in rootfs ..."
+mount --bind /proc  "$WORK/rootfs/proc"
+mount --bind /sys   "$WORK/rootfs/sys"
+mount --bind /dev   "$WORK/rootfs/dev"
+cp /etc/resolv.conf "$WORK/rootfs/etc/resolv.conf"
+
+chroot "$WORK/rootfs" apt-get update -qq
+chroot "$WORK/rootfs" apt-get install -y -qq curl openssh-server net-tools
+chroot "$WORK/rootfs" systemctl enable ssh
+echo "ubuntu:12345678" | chroot "$WORK/rootfs" chpasswd
+chroot "$WORK/rootfs" bash -c 'curl -fsSL https://opencode.ai/install | bash'
+
+umount "$WORK/rootfs/proc" "$WORK/rootfs/sys" "$WORK/rootfs/dev"
 
 # 11. Resquash
 info "Resquashing rootfs ..."
@@ -320,7 +319,7 @@ INNER_EOF
 
 chmod +x "$BUILD_DIR/patch-inner.sh"
 
-docker run --rm --platform linux/arm64 \
+docker run --rm --privileged --platform linux/arm64 \
     -v "$BUILD_DIR:/build" \
     -v "$SCRIPT_DIR/patches:/build/patches:ro" \
     sp11-iso-patcher \
