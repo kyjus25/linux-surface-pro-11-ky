@@ -302,7 +302,16 @@ umount "$WORK/rootfs/proc" "$WORK/rootfs/sys" "$WORK/rootfs/dev"
 info "Decompressing firmware files ..."
 find "$WORK/rootfs/lib/firmware" -name "*.zst" -exec zstd -d --rm -q {} \; 2>/dev/null || true
 
-# 12. Resquash
+# 12. Install real Surface Pro 11 board data from Windows firmware
+info "Installing Surface Pro 11 board data ..."
+if [ -f "/build/firmware/bdwlan.elf" ]; then
+    cp "/build/firmware/bdwlan.elf" "$WORK/rootfs/lib/firmware/ath12k/WCN7850/hw2.0/board.bin"
+    info "  Installed bdwlan.elf as board.bin"
+else
+    info "  WARNING: bdwlan.elf not found in /build/firmware, using existing"
+fi
+
+# 13. Resquash
 info "Resquashing rootfs ..."
 mksquashfs "$WORK/rootfs" "$WORK/filesystem.squashfs" -comp zstd -b 1M -noappend &>/dev/null
 
@@ -330,6 +339,7 @@ chmod +x "$BUILD_DIR/patch-inner.sh"
 docker run --rm --privileged --platform linux/arm64 \
     -v "$BUILD_DIR:/build" \
     -v "$SCRIPT_DIR/patches:/build/patches:ro" \
+    -v "$SCRIPT_DIR/firmware:/build/firmware:ro" \
     sp11-iso-patcher \
     bash /build/patch-inner.sh
 

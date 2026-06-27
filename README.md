@@ -55,8 +55,10 @@ Requires only Docker. Runs entirely inside an `arm64v8/ubuntu:26.04` container.
    existing kernel build tree (exact vermagic match)
 6. Decompresses firmware files (`.zst` → raw) so the kernel firmware loader
    can find `board-2.bin`, `amss.bin`, etc. without transparent decompression
-7. Compresses modules with zstd and injects them into the rootfs
-8. Re-squashes and re-packs as a hybrid MBR+GPT+El Torito ISO
+7. Installs `bdwlan.elf` as `board.bin` — the Surface Pro 11's board data
+   extracted from the Windows driver (see below)
+8. Compresses modules with zstd and injects them into the rootfs
+9. Re-squashes and re-packs as a hybrid MBR+GPT+El Torito ISO
 
 ## Patches
 
@@ -76,10 +78,29 @@ devicetree property, but since UEFI ARM64 firmware owns the devicetree and
 the ISO has no DTBs, the property can never be set. The modified version
 unconditionally skips rfkill configuration.
 
+## Board data firmware
+
+The Ubuntu firmware package's `board-2.bin` doesn't have an entry for the
+Surface Pro 11 LCD (X1P64100). We extract the real board data from the
+Windows driver store on the device itself.
+
+On Windows (PowerShell as Admin):
+
+```
+C:\Windows\System32\DriverStore\FileRepository\qcwlanhmt8380.inf_arm64_f6c170edbe88d474\bdwlan.elf
+```
+
+Copy `bdwlan.elf` to `firmware/bdwlan.elf` in this repo.
+
+Place the file at `firmware/bdwlan.elf` in this repo. The script copies it
+into the rootfs as `board.bin` — the fallback the ath12k driver uses when
+`board-2.bin` doesn't have a matching entry.
+
 ## Files
 
 | Path | Purpose |
 |------|---------|
 | `patch-ubuntu-iso.sh` | Main script |
 | `patches/*.patch` | ath12k patches |
+| `firmware/bdwlan.elf` | Surface Pro 11 board data from Windows driver |
 | `build/` | Auto-generated (ignored by git) |
