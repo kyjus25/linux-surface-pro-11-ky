@@ -15,22 +15,7 @@ and boot workarounds for the Surface Pro 11 (WCN7850).
 ## Pre-installed packages
 
 - **curl** — for downloading files
-- **openssh-server** — enabled on boot, ready for remote debugging
 - **net-tools** — ifconfig, netstat, etc.
-- **opencode** — installed via `curl -fsSL https://opencode.ai/install | bash`
-
-## SSH access
-
-The live USB has SSH enabled by default for remote debugging:
-
-```bash
-# Default credentials
-User: ubuntu
-Pass: 12345678
-
-# Connect
-ssh ubuntu@<ip-address>
-```
 
 ## Usage
 
@@ -61,18 +46,28 @@ Requires only Docker. Runs entirely inside an `arm64v8/ubuntu:26.04` container.
 8. Compresses modules with zstd and injects them into the rootfs
 9. Re-squashes and re-packs as a hybrid MBR+GPT+El Torito ISO
 
+## On-device debugging
+
+The `debug-wifi.sh` script is baked into the rootfs. After booting the live USB,
+open a terminal and run:
+
+```bash
+sudo /debug-wifi.sh
+```
+
+It checks firmware files, module status, dmesg, rfkill, and QMI board data
+status.
+
 ## Patches
 
 From [dwhinham/kernel-surface-pro-11](https://github.com/dwhinham/kernel-surface-pro-11),
-with modifications. Patches 1 and 3 are skipped (dt-bindings/DTS — UEFI ARM64
-firmware provides the devicetree, so there are no DTBs to patch in the ISO):
+with modifications. Only patches 2 and 4 are included — the dt-bindings and DTS
+patches are not needed since UEFI ARM64 firmware provides the devicetree:
 
-| Patch | Applied | Purpose |
-|-------|---------|---------|
-| `0001` | No | dt-bindings: add disable-rfkill property |
-| `0002` | **Yes** | ath12k: always disable rfkill (modified from original) |
-| `0003` | No | DTS: disable rfkill for wifi0 on x1e80100-denali |
-| `0004` | **Yes** | ath12k: allow setting MAC address via devicetree |
+| Patch | Purpose |
+|-------|---------|
+| `0002` | ath12k: always disable rfkill (modified from original) |
+| `0004` | ath12k: allow setting MAC address via devicetree |
 
 Patch 0002 was modified: the original checked for a `disable-rfkill`
 devicetree property, but since UEFI ARM64 firmware owns the devicetree and
@@ -123,7 +118,7 @@ If dmesg shows `qmi failed to load board data file:-110` (ETIMEDOUT):
 1. **Firmware version mismatch** — the most common cause. Ensure `amss.bin`,
    `m3.bin`, and `bdwlan.elf` all come from the same Windows driver store
    directory. Do not mix Windows firmware with the ISO's firmware.
-2. **Missing firmware files** — SSH in and verify:
+2. **Missing firmware files** — verify on the booted device:
    ```bash
    ls -la /lib/firmware/ath12k/WCN7850/hw2.0/
    # Should show: amss.bin  m3.bin  board.bin  board-2.bin

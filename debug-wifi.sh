@@ -2,7 +2,7 @@
 #
 # debug-wifi.sh — Surface Pro 11 ath12k WiFi diagnostic
 #
-# Run on the booted SP11 (via SSH or console) to diagnose WiFi issues.
+# Run on the booted SP11 to diagnose WiFi issues.
 # Usage: sudo ./debug-wifi.sh
 #
 set -euo pipefail

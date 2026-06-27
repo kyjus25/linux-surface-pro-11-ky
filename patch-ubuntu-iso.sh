@@ -284,21 +284,17 @@ info "Installing packages in rootfs ..."
 mount --bind /proc  "$WORK/rootfs/proc"
 mount --bind /sys   "$WORK/rootfs/sys"
 mount --bind /dev   "$WORK/rootfs/dev"
-mkdir -p "$WORK/rootfs/cdrom"
-mount --bind "$WORK/iso" "$WORK/rootfs/cdrom"
 cp /etc/resolv.conf "$WORK/rootfs/etc/resolv.conf"
 
 chroot "$WORK/rootfs" apt-get update -qq
-chroot "$WORK/rootfs" apt-get install -y -qq curl openssh-server net-tools
-chroot "$WORK/rootfs" systemctl enable ssh
-chroot "$WORK/rootfs" bash -c 'id -u ubuntu &>/dev/null || useradd -m -s /bin/bash ubuntu'
-echo "ubuntu:12345678" | chroot "$WORK/rootfs" chpasswd
-chroot "$WORK/rootfs" bash -c 'curl -fsSL https://opencode.ai/install | bash'
-ln -sf /root/.opencode/bin/opencode "$WORK/rootfs/usr/local/bin/opencode"
-info "  Installed opencode (symlinked to /usr/local/bin)"
+chroot "$WORK/rootfs" apt-get install -y -qq curl net-tools
 
-umount "$WORK/rootfs/cdrom"
 umount "$WORK/rootfs/proc" "$WORK/rootfs/sys" "$WORK/rootfs/dev"
+
+# Include debug-wifi.sh in rootfs for on-device diagnostics
+cp /build/debug-wifi.sh "$WORK/rootfs/debug-wifi.sh"
+chmod +x "$WORK/rootfs/debug-wifi.sh"
+info "  Included debug-wifi.sh in rootfs"
 
 # 11. Decompress firmware files (kernel firmware loader can't find .zst files)
 info "Decompressing firmware files ..."
@@ -374,10 +370,10 @@ fi
 info "Resquashing rootfs ..."
 mksquashfs "$WORK/rootfs" "$WORK/filesystem.squashfs" -comp zstd -b 1M -noappend &>/dev/null
 
-# 13. Replace in ISO directory
+# 14. Replace in ISO directory
 cp "$WORK/filesystem.squashfs" "$SQUASH"
 
-# 14. Repack ISO with proper hybrid layout (MBR + GPT + El Torito)
+# 15. Repack ISO with proper hybrid layout (MBR + GPT + El Torito)
 info "Repacking ISO ..."
 EFI_IMG="boot/grub/efi.img"
 xorriso -as mkisofs \
@@ -399,6 +395,7 @@ docker run --rm --privileged --platform linux/arm64 \
     -v "$BUILD_DIR:/build" \
     -v "$SCRIPT_DIR/patches:/build/patches:ro" \
     -v "$SCRIPT_DIR/firmware:/build/firmware:ro" \
+    -v "$SCRIPT_DIR/debug-wifi.sh:/build/debug-wifi.sh:ro" \
     sp11-iso-patcher \
     bash /build/patch-inner.sh
 
