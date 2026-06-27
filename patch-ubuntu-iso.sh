@@ -284,11 +284,14 @@ info "Installing packages in rootfs ..."
 mount --bind /proc  "$WORK/rootfs/proc"
 mount --bind /sys   "$WORK/rootfs/sys"
 mount --bind /dev   "$WORK/rootfs/dev"
+mkdir -p "$WORK/rootfs/cdrom"
+mount --bind "$WORK/iso" "$WORK/rootfs/cdrom"
 cp /etc/resolv.conf "$WORK/rootfs/etc/resolv.conf"
 
 chroot "$WORK/rootfs" apt-get update -qq
 chroot "$WORK/rootfs" apt-get install -y -qq curl net-tools
 
+umount "$WORK/rootfs/cdrom"
 umount "$WORK/rootfs/proc" "$WORK/rootfs/sys" "$WORK/rootfs/dev"
 
 # Include debug-wifi.sh in rootfs for on-device diagnostics
