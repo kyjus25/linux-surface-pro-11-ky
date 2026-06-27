@@ -53,8 +53,10 @@ Requires only Docker. Runs entirely inside an `arm64v8/ubuntu:26.04` container.
 4. Adds `efi=novamap` and audio `module_blacklist` to the kernel cmdline
 5. Builds patched `ath12k.ko` and `wifi7/ath12k_wifi7.ko` against the ISO's
    existing kernel build tree (exact vermagic match)
-6. Compresses modules with zstd and injects them into the rootfs
-7. Re-squashes and re-packs as a hybrid MBR+GPT+El Torito ISO
+6. Decompresses firmware files (`.zst` → raw) so the kernel firmware loader
+   can find `board-2.bin`, `amss.bin`, etc. without transparent decompression
+7. Compresses modules with zstd and injects them into the rootfs
+8. Re-squashes and re-packs as a hybrid MBR+GPT+El Torito ISO
 
 ## Patches
 

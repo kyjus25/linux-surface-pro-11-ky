@@ -284,24 +284,32 @@ info "Installing packages in rootfs ..."
 mount --bind /proc  "$WORK/rootfs/proc"
 mount --bind /sys   "$WORK/rootfs/sys"
 mount --bind /dev   "$WORK/rootfs/dev"
+mkdir -p "$WORK/rootfs/cdrom"
+mount --bind "$WORK/iso" "$WORK/rootfs/cdrom"
 cp /etc/resolv.conf "$WORK/rootfs/etc/resolv.conf"
 
 chroot "$WORK/rootfs" apt-get update -qq
 chroot "$WORK/rootfs" apt-get install -y -qq curl openssh-server net-tools
 chroot "$WORK/rootfs" systemctl enable ssh
+chroot "$WORK/rootfs" bash -c 'id -u ubuntu &>/dev/null || useradd -m -s /bin/bash ubuntu'
 echo "ubuntu:12345678" | chroot "$WORK/rootfs" chpasswd
 chroot "$WORK/rootfs" bash -c 'curl -fsSL https://opencode.ai/install | bash'
 
+umount "$WORK/rootfs/cdrom"
 umount "$WORK/rootfs/proc" "$WORK/rootfs/sys" "$WORK/rootfs/dev"
 
-# 11. Resquash
+# 11. Decompress firmware files (kernel firmware loader can't find .zst files)
+info "Decompressing firmware files ..."
+find "$WORK/rootfs/lib/firmware" -name "*.zst" -exec zstd -d --rm -q {} \; 2>/dev/null || true
+
+# 12. Resquash
 info "Resquashing rootfs ..."
 mksquashfs "$WORK/rootfs" "$WORK/filesystem.squashfs" -comp zstd -b 1M -noappend &>/dev/null
 
-# 12. Replace in ISO directory
+# 13. Replace in ISO directory
 cp "$WORK/filesystem.squashfs" "$SQUASH"
 
-# 13. Repack ISO with proper hybrid layout (MBR + GPT + El Torito)
+# 14. Repack ISO with proper hybrid layout (MBR + GPT + El Torito)
 info "Repacking ISO ..."
 EFI_IMG="boot/grub/efi.img"
 xorriso -as mkisofs \
