@@ -322,22 +322,32 @@ FW_DIR="$WORK/rootfs/lib/firmware/ath12k/WCN7850/hw2.0"
 FW_MISSING=0
 
 # amss.bin — main firmware (loaded via MHI before QMI starts)
-if [ -f "/build/firmware/amss.bin" ]; then
-    cp "/build/firmware/amss.bin" "$FW_DIR/amss.bin"
-    info "  Installed amss.bin (main firmware)"
+# Windows driver store names this wlanfw20.mbn (also an ELF, 6 MB)
+AMSS_SRC=""
+for f in /build/firmware/amss.bin /build/firmware/wlanfw20.mbn; do
+    [ -f "$f" ] && AMSS_SRC="$f" && break
+done
+if [ -n "$AMSS_SRC" ]; then
+    cp "$AMSS_SRC" "$FW_DIR/amss.bin"
+    info "  Installed $(basename "$AMSS_SRC") as amss.bin (main firmware)"
 else
-    info "  WARNING: amss.bin not found in firmware/ — QMI -110 timeout likely"
+    info "  WARNING: amss.bin/wlanfw20.mbn not found — QMI -110 timeout likely"
     info "           without version-matched firmware. Extract from Windows"
     info "           driver store (see README 'WiFi firmware' section)."
     FW_MISSING=1
 fi
 
 # m3.bin — M3 microcontroller firmware (loaded after board data)
-if [ -f "/build/firmware/m3.bin" ]; then
-    cp "/build/firmware/m3.bin" "$FW_DIR/m3.bin"
-    info "  Installed m3.bin (M3 microcontroller firmware)"
+# Windows driver store names this phy_ucode20.elf
+M3_SRC=""
+for f in /build/firmware/m3.bin /build/firmware/phy_ucode20.elf; do
+    [ -f "$f" ] && M3_SRC="$f" && break
+done
+if [ -n "$M3_SRC" ]; then
+    cp "$M3_SRC" "$FW_DIR/m3.bin"
+    info "  Installed $(basename "$M3_SRC") as m3.bin (M3 microcontroller firmware)"
 else
-    info "  WARNING: m3.bin not found in firmware/ — must match amss.bin version"
+    info "  WARNING: m3.bin/phy_ucode20.elf not found — must match amss.bin version"
     FW_MISSING=1
 fi
 

@@ -100,10 +100,15 @@ C:\Windows\System32\DriverStore\FileRepository\qcwlanhmt8380.inf_arm64_f6c170edb
 
 | Windows file | Copy to repo as | Installed as | Purpose |
 |--------------|-----------------|--------------|---------|
-| `amss.bin` | `firmware/amss.bin` | `amss.bin` | Main firmware (loaded via MHI) |
-| `m3.bin` | `firmware/m3.bin` | `m3.bin` | M3 microcontroller firmware |
+| `wlanfw20.mbn` | `firmware/wlanfw20.mbn` | `amss.bin` | Main firmware (ELF, loaded via MHI) |
+| `phy_ucode20.elf` | `firmware/phy_ucode20.elf` | `m3.bin` | M3 microcontroller firmware (ELF) |
 | `bdwlan.elf` | `firmware/bdwlan.elf` | `board.bin` | Board data (RF config, calibration) |
 | `regdb.bin` | `firmware/regdb.bin` | `regdb.bin` | Regulatory database (optional) |
+
+The script auto-detects both Linux names (`amss.bin`, `m3.bin`) and Windows
+names (`wlanfw20.mbn`, `phy_ucode20.elf`). All files are ELF — the `.mbn`
+extension is just Qualcomm's naming convention. Simply copy the entire driver
+store folder contents into `firmware/`.
 
 The script copies these into `/lib/firmware/ath12k/WCN7850/hw2.0/` in the
 rootfs, overwriting the ISO's versions. The ISO's `board-2.bin` is kept for its
