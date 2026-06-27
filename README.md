@@ -5,9 +5,10 @@ and boot workarounds for the Surface Pro 11 (WCN7850).
 
 ## What it fixes
 
-- **WiFi hard-blocked** — rfkill disable via devicetree property (patch 2)
+- **WiFi hard-blocked** — unconditionally skips rfkill in the ath12k driver
+  (firmware hard-blocks rfkill; devicetree property can't be set on UEFI ARM64)
 - **MAC address** — allows setting MAC via devicetree (patch 4)
-- **Goldilocks Maneuver** — replaces Microsoft shim with full GRUB for reliable boot
+- **[Goldilocks Maneuver](https://github.com/linux-surface/linux-surface/discussions/2128)** — replaces Microsoft shim with full GRUB for reliable boot
 - **efi=novamap** — works around EFI memory map issues on Snapdragon X Elite
 - **Audio blacklist** — prevents audio DSP hangs from blocking boot
 
@@ -38,15 +39,20 @@ Requires only Docker. Runs entirely inside an `arm64v8/ubuntu:26.04` container.
 ## Patches
 
 From [dwhinham/kernel-surface-pro-11](https://github.com/dwhinham/kernel-surface-pro-11),
-only patches 2 and 4 are applied (1 and 3 are dt-bindings/DTS and are skipped
-since the module is built against the ISO's pre-existing kernel build tree):
+with modifications. Patches 1 and 3 are skipped (dt-bindings/DTS — UEFI ARM64
+firmware provides the devicetree, so there are no DTBs to patch in the ISO):
 
 | Patch | Applied | Purpose |
 |-------|---------|---------|
 | `0001` | No | dt-bindings: add disable-rfkill property |
-| `0002` | **Yes** | ath12k: support disabling rfkill via devicetree |
+| `0002` | **Yes** | ath12k: always disable rfkill (modified from original) |
 | `0003` | No | DTS: disable rfkill for wifi0 on x1e80100-denali |
 | `0004` | **Yes** | ath12k: allow setting MAC address via devicetree |
+
+Patch 0002 was modified: the original checked for a `disable-rfkill`
+devicetree property, but since UEFI ARM64 firmware owns the devicetree and
+the ISO has no DTBs, the property can never be set. The modified version
+unconditionally skips rfkill configuration.
 
 ## Files
 

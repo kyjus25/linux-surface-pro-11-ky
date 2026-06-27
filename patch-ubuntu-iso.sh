@@ -10,10 +10,11 @@
 # so the only requirement is Docker.
 #
 # Patches applied:
-#   1. dt-bindings: ath12k disable-rfkill property
-#   2. ath12k: support disabling rfkill via devicetree
-#   3. x1e80100-denali DTS: disable rfkill for wifi0
+#   2. ath12k: always skip rfkill (modified — original checked devicetree)
 #   4. ath12k: allow setting MAC address via devicetree
+#
+# Patches 1 and 3 (dt-bindings/DTS) are skipped — UEFI ARM64 firmware
+# provides the devicetree, so there are no DTBs to patch in the ISO.
 #
 # Usage:
 #   ./patch-ubuntu-iso.sh [--local-iso /path/to/resolute.iso]
