@@ -1,5 +1,10 @@
 # linux-surface-pro-11-ky
 
+> **Target device:** Surface Pro 11 LCD — Snapdragon X Plus (X1P64100), WCN7850
+> WiFi/BT module, `qmi-board-id=255`. The Windows firmware swap is specific to
+> this variant; X1E80100 devices work with the ISO's stock linux-firmware and
+> just the rfkill patch.
+
 Patches the Ubuntu Concept "Resolute" ARM64 ISO with ath12k WiFi driver fixes
 and boot workarounds for the Surface Pro 11 (WCN7850).
 
