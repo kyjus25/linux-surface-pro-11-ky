@@ -80,7 +80,7 @@ unconditionally skips rfkill configuration.
 
 ## Board data firmware
 
-The Ubuntu firmware package's `board-2.bin` doesn't have an entry for the
+The Ubuntu firmware package's `board-2.bin` doesn't have an entry (`board_id=255`) for the
 Surface Pro 11 LCD (X1P64100). We extract the real board data from the
 Windows driver store on the device itself.
 
