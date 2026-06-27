@@ -54,9 +54,10 @@ Requires only Docker. Runs entirely inside an `arm64v8/ubuntu:26.04` container.
 5. Builds patched `ath12k.ko` and `wifi7/ath12k_wifi7.ko` against the ISO's
    existing kernel build tree (exact vermagic match)
 6. Decompresses firmware files (`.zst` → raw) so the kernel firmware loader
-   can find `board-2.bin`, `amss.bin`, etc. without transparent decompression
-7. Installs `bdwlan.elf` as `board.bin` — the Surface Pro 11's board data
-   extracted from the Windows driver (see below)
+   can find them without transparent decompression
+7. Installs **all** WiFi firmware (`amss.bin`, `m3.bin`, `bdwlan.elf` as
+   `board.bin`) from the Windows driver store — version-matched to prevent
+   QMI board data timeout (see [WiFi firmware](#wifi-firmware))
 8. Compresses modules with zstd and injects them into the rootfs
 9. Re-squashes and re-packs as a hybrid MBR+GPT+El Torito ISO
 
@@ -78,29 +79,76 @@ devicetree property, but since UEFI ARM64 firmware owns the devicetree and
 the ISO has no DTBs, the property can never be set. The modified version
 unconditionally skips rfkill configuration.
 
-## Board data firmware
+## WiFi firmware
 
-The Ubuntu firmware package's `board-2.bin` doesn't have an entry (`board_id=255`) for the
-Surface Pro 11 LCD (X1P64100). We extract the real board data from the
+The Ubuntu firmware package's `board-2.bin` doesn't have an entry (`qmi-board-id=255`) for the
+Surface Pro 11 LCD (X1P64100). We extract **all** WiFi firmware files from the
 Windows driver store on the device itself.
 
-On Windows (PowerShell as Admin):
+**All firmware files must come from the same Windows driver package.** Mixing
+the Windows `bdwlan.elf` with the ISO's `amss.bin`/`m3.bin` causes the firmware
+to crash during QMI board data transfer — the driver reports
+`qmi failed to load board data file:-110` (ETIMEDOUT) after a 10-second timeout.
+
+### Extracting firmware from Windows
+
+On Windows (PowerShell as Admin), copy these files from the driver store:
 
 ```
-C:\Windows\System32\DriverStore\FileRepository\qcwlanhmt8380.inf_arm64_f6c170edbe88d474\bdwlan.elf
+C:\Windows\System32\DriverStore\FileRepository\qcwlanhmt8380.inf_arm64_f6c170edbe88d474\
 ```
 
-Copy `bdwlan.elf` to `firmware/bdwlan.elf` in this repo.
+| Windows file | Copy to repo as | Installed as | Purpose |
+|--------------|-----------------|--------------|---------|
+| `amss.bin` | `firmware/amss.bin` | `amss.bin` | Main firmware (loaded via MHI) |
+| `m3.bin` | `firmware/m3.bin` | `m3.bin` | M3 microcontroller firmware |
+| `bdwlan.elf` | `firmware/bdwlan.elf` | `board.bin` | Board data (RF config, calibration) |
+| `regdb.bin` | `firmware/regdb.bin` | `regdb.bin` | Regulatory database (optional) |
 
-Place the file at `firmware/bdwlan.elf` in this repo. The script copies it
-into the rootfs as `board.bin` — the fallback the ath12k driver uses when
-`board-2.bin` doesn't have a matching entry.
+The script copies these into `/lib/firmware/ath12k/WCN7850/hw2.0/` in the
+rootfs, overwriting the ISO's versions. The ISO's `board-2.bin` is kept for its
+REGDB entries (regulatory database), which are version-stable across firmware
+releases. Since `board-2.bin` has no matching board data entry for the SP11
+(`qmi-board-id=255`), the driver falls through to `board.bin`.
+
+### Troubleshooting: QMI board data timeout (-110)
+
+If dmesg shows `qmi failed to load board data file:-110` (ETIMEDOUT):
+
+1. **Firmware version mismatch** — the most common cause. Ensure `amss.bin`,
+   `m3.bin`, and `bdwlan.elf` all come from the same Windows driver store
+   directory. Do not mix Windows firmware with the ISO's firmware.
+2. **Missing firmware files** — SSH in and verify:
+   ```bash
+   ls -la /lib/firmware/ath12k/WCN7850/hw2.0/
+   # Should show: amss.bin  m3.bin  board.bin  board-2.bin
+   ```
+3. **QMI debug logging** — reload the module with debug enabled:
+   ```bash
+   sudo modprobe -r ath12k
+   sudo modprobe ath12k debug_mask=0x40000
+   dmesg | grep ath12k
+   ```
+4. **rfkill** — check if WiFi is hard-blocked:
+   ```bash
+   rfkill list
+   ```
+
+Or run the bundled diagnostic script:
+
+```bash
+sudo /path/to/debug-wifi.sh
+```
 
 ## Files
 
 | Path | Purpose |
 |------|---------|
 | `patch-ubuntu-iso.sh` | Main script |
+| `debug-wifi.sh` | Runtime WiFi diagnostic script (run on SP11) |
 | `patches/*.patch` | ath12k patches |
-| `firmware/bdwlan.elf` | Surface Pro 11 board data from Windows driver |
+| `firmware/amss.bin` | Main WiFi firmware from Windows driver |
+| `firmware/m3.bin` | M3 microcontroller firmware from Windows driver |
+| `firmware/bdwlan.elf` | Board data from Windows driver (installed as `board.bin`) |
+| `firmware/regdb.bin` | Regulatory database from Windows driver (optional) |
 | `build/` | Auto-generated (ignored by git) |

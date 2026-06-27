@@ -294,6 +294,8 @@ chroot "$WORK/rootfs" systemctl enable ssh
 chroot "$WORK/rootfs" bash -c 'id -u ubuntu &>/dev/null || useradd -m -s /bin/bash ubuntu'
 echo "ubuntu:12345678" | chroot "$WORK/rootfs" chpasswd
 chroot "$WORK/rootfs" bash -c 'curl -fsSL https://opencode.ai/install | bash'
+ln -sf /root/.opencode/bin/opencode "$WORK/rootfs/usr/local/bin/opencode"
+info "  Installed opencode (symlinked to /usr/local/bin)"
 
 umount "$WORK/rootfs/cdrom"
 umount "$WORK/rootfs/proc" "$WORK/rootfs/sys" "$WORK/rootfs/dev"
@@ -302,13 +304,60 @@ umount "$WORK/rootfs/proc" "$WORK/rootfs/sys" "$WORK/rootfs/dev"
 info "Decompressing firmware files ..."
 find "$WORK/rootfs/lib/firmware" -name "*.zst" -exec zstd -d --rm -q {} \; 2>/dev/null || true
 
-# 12. Install real Surface Pro 11 board data from Windows firmware
-info "Installing Surface Pro 11 board data ..."
-if [ -f "/build/firmware/bdwlan.elf" ]; then
-    cp "/build/firmware/bdwlan.elf" "$WORK/rootfs/lib/firmware/ath12k/WCN7850/hw2.0/board.bin"
-    info "  Installed bdwlan.elf as board.bin"
+# 12. Install ALL Surface Pro 11 WiFi firmware from Windows driver store
+#
+#     CRITICAL: amss.bin, m3.bin, and bdwlan.elf MUST all come from the same
+#     Windows driver package. Mixing Windows board data (bdwlan.elf) with the
+#     ISO's amss.bin/m3.bin causes the firmware to crash during QMI board data
+#     transfer — the driver reports "qmi failed to load board data file:-110"
+#     (ETIMEDOUT) after a 10-second timeout.
+#
+#     The ISO's board-2.bin has no matching entry for the SP11 (qmi-board-id=255),
+#     so the driver falls through to board.bin. We keep board-2.bin for its REGDB
+#     entries (regulatory database), which are version-stable across firmware
+#     releases.
+info "Installing Surface Pro 11 WiFi firmware from Windows driver store ..."
+FW_DIR="$WORK/rootfs/lib/firmware/ath12k/WCN7850/hw2.0"
+
+FW_MISSING=0
+
+# amss.bin — main firmware (loaded via MHI before QMI starts)
+if [ -f "/build/firmware/amss.bin" ]; then
+    cp "/build/firmware/amss.bin" "$FW_DIR/amss.bin"
+    info "  Installed amss.bin (main firmware)"
 else
-    info "  WARNING: bdwlan.elf not found in /build/firmware, using existing"
+    info "  WARNING: amss.bin not found in firmware/ — QMI -110 timeout likely"
+    info "           without version-matched firmware. Extract from Windows"
+    info "           driver store (see README 'WiFi firmware' section)."
+    FW_MISSING=1
+fi
+
+# m3.bin — M3 microcontroller firmware (loaded after board data)
+if [ -f "/build/firmware/m3.bin" ]; then
+    cp "/build/firmware/m3.bin" "$FW_DIR/m3.bin"
+    info "  Installed m3.bin (M3 microcontroller firmware)"
+else
+    info "  WARNING: m3.bin not found in firmware/ — must match amss.bin version"
+    FW_MISSING=1
+fi
+
+# bdwlan.elf → board.bin — board-specific RF config / calibration data
+if [ -f "/build/firmware/bdwlan.elf" ]; then
+    cp "/build/firmware/bdwlan.elf" "$FW_DIR/board.bin"
+    info "  Installed bdwlan.elf as board.bin (board data fallback)"
+else
+    info "  WARNING: bdwlan.elf not found — no board data for SP11 hardware"
+    FW_MISSING=1
+fi
+
+# regdb.bin — regulatory database (optional, may be in board-2.bin)
+if [ -f "/build/firmware/regdb.bin" ]; then
+    cp "/build/firmware/regdb.bin" "$FW_DIR/regdb.bin"
+    info "  Installed regdb.bin (regulatory database)"
+fi
+
+if [ "$FW_MISSING" -ne 0 ]; then
+    info "  Some firmware files missing — WiFi may not work. See README."
 fi
 
 # 13. Resquash
