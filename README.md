@@ -3,7 +3,7 @@
 > **Target device:** Surface Pro 11 LCD — Snapdragon X Plus (X1P64100), WCN7850
 > WiFi/BT module, `qmi-board-id=255`. The Windows firmware swap is specific to
 > this variant; X1E80100 devices work with the ISO's stock linux-firmware and
-> just the rfkill patch.
+> just the rfkill patch. WiFi fixes confirmed working on both X1P and X1E.
 
 Patches the Ubuntu Concept "Resolute" ARM64 ISO with ath12k WiFi driver fixes
 and boot workarounds for the Surface Pro 11 (WCN7850).
@@ -13,6 +13,9 @@ and boot workarounds for the Surface Pro 11 (WCN7850).
 - **WiFi hard-blocked** — unconditionally skips rfkill in the ath12k driver
   (firmware hard-blocks rfkill; devicetree property can't be set on UEFI ARM64)
 - **MAC address** — allows setting MAC via devicetree (patch 4)
+- **Bluetooth MAC** — reads the real per-device MAC from the UEFI variable
+  `MacAddressEmulationAddress` and sets it via `btmgmt` at boot (WCN7850 ships
+  with a default MAC in NVM; Windows reads it from UEFI on every boot)
 - **[Goldilocks Maneuver](https://github.com/linux-surface/linux-surface/discussions/2128)** — replaces Microsoft shim with full GRUB for reliable boot
 - **efi=novamap** — works around EFI memory map issues on Snapdragon X Elite
 - **Audio blacklist** — prevents audio DSP hangs from blocking boot
@@ -49,7 +52,10 @@ Requires only Docker. Runs entirely inside an `arm64v8/ubuntu:26.04` container.
    `board.bin`) from the Windows driver store — version-matched to prevent
    QMI board data timeout (see [WiFi firmware](#wifi-firmware))
 8. Compresses modules with zstd and injects them into the rootfs
-9. Re-squashes and re-packs as a hybrid MBR+GPT+El Torito ISO
+9. Installs Bluetooth MAC fix: reads the real MAC from the UEFI variable
+   `MacAddressEmulationAddress` and sets it via `btmgmt` before bluetoothd
+   starts (systemd service with `Before=bluetooth.service`)
+10. Re-squashes and re-packs as a hybrid MBR+GPT+El Torito ISO
 
 ## On-device debugging
 
@@ -142,7 +148,7 @@ If dmesg shows `qmi failed to load board data file:-110` (ETIMEDOUT):
 Or run the bundled diagnostic script:
 
 ```bash
-sudo /path/to/debug-wifi.sh
+sudo /debug-wifi.sh
 ```
 
 ## Files
@@ -150,10 +156,10 @@ sudo /path/to/debug-wifi.sh
 | Path | Purpose |
 |------|---------|
 | `patch-ubuntu-iso.sh` | Main script |
-| `debug-wifi.sh` | Runtime WiFi diagnostic script (run on SP11) |
+| `overlay/` | Files overlaid onto rootfs (debug-wifi.sh, BT MAC fix) |
 | `patches/*.patch` | ath12k patches |
-| `firmware/amss.bin` | Main WiFi firmware from Windows driver |
-| `firmware/m3.bin` | M3 microcontroller firmware from Windows driver |
+| `firmware/wlanfw20.mbn` | Main WiFi firmware from Windows driver (installed as `amss.bin`) |
+| `firmware/phy_ucode20.elf` | M3 microcontroller firmware from Windows driver (installed as `m3.bin`) |
 | `firmware/bdwlan.elf` | Board data from Windows driver (installed as `board.bin`) |
 | `firmware/regdb.bin` | Regulatory database from Windows driver (optional) |
 | `build/` | Auto-generated (ignored by git) |

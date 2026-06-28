@@ -294,16 +294,17 @@ chroot "$WORK/rootfs" apt-get install -y -qq curl net-tools
 umount "$WORK/rootfs/cdrom"
 umount "$WORK/rootfs/proc" "$WORK/rootfs/sys" "$WORK/rootfs/dev"
 
-# Include debug-wifi.sh in rootfs for on-device diagnostics
-cp /build/debug-wifi.sh "$WORK/rootfs/debug-wifi.sh"
-chmod +x "$WORK/rootfs/debug-wifi.sh"
-info "  Included debug-wifi.sh in rootfs"
+# 11. Overlay rootfs files (debug-wifi.sh, Bluetooth MAC fix, etc.)
+info "Installing overlay files into rootfs ..."
+cp -r /build/overlay/* "$WORK/rootfs/"
+chmod +x "$WORK/rootfs/debug-wifi.sh" "$WORK/rootfs/usr/local/sbin/sp11-bt-addr.sh"
+info "  Installed debug-wifi.sh, sp11-bt-addr.sh, sp11-bt-addr.service"
 
-# 11. Decompress firmware files (kernel firmware loader can't find .zst files)
+# 12. Decompress firmware files (kernel firmware loader can't find .zst files)
 info "Decompressing firmware files ..."
 find "$WORK/rootfs/lib/firmware" -name "*.zst" -exec zstd -d --rm -q {} \; 2>/dev/null || true
 
-# 12. Install ALL Surface Pro 11 WiFi firmware from Windows driver store
+# 13. Install ALL Surface Pro 11 WiFi firmware from Windows driver store
 #
 #     CRITICAL: amss.bin, m3.bin, and bdwlan.elf MUST all come from the same
 #     Windows driver package. Mixing Windows board data (bdwlan.elf) with the
@@ -369,14 +370,14 @@ if [ "$FW_MISSING" -ne 0 ]; then
     info "  Some firmware files missing — WiFi may not work. See README."
 fi
 
-# 13. Resquash
+# 14. Resquash
 info "Resquashing rootfs ..."
 mksquashfs "$WORK/rootfs" "$WORK/filesystem.squashfs" -comp zstd -b 1M -noappend &>/dev/null
 
-# 14. Replace in ISO directory
+# 15. Replace in ISO directory
 cp "$WORK/filesystem.squashfs" "$SQUASH"
 
-# 15. Repack ISO with proper hybrid layout (MBR + GPT + El Torito)
+# 16. Repack ISO with proper hybrid layout (MBR + GPT + El Torito)
 info "Repacking ISO ..."
 EFI_IMG="boot/grub/efi.img"
 xorriso -as mkisofs \
@@ -398,7 +399,7 @@ docker run --rm --privileged --platform linux/arm64 \
     -v "$BUILD_DIR:/build" \
     -v "$SCRIPT_DIR/patches:/build/patches:ro" \
     -v "$SCRIPT_DIR/firmware:/build/firmware:ro" \
-    -v "$SCRIPT_DIR/debug-wifi.sh:/build/debug-wifi.sh:ro" \
+    -v "$SCRIPT_DIR/overlay:/build/overlay:ro" \
     sp11-iso-patcher \
     bash /build/patch-inner.sh
 
